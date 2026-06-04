@@ -24,9 +24,9 @@ header .meta{display:flex;gap:18px;margin-top:18px;font-family:var(--mono);font-
 header .meta span b{color:var(--mut);font-weight:500}
 .section{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);font-weight:600;margin:38px 0 16px;display:flex;align-items:center;gap:10px}
 .section .ct{background:#1d2129;color:var(--mut);padding:2px 8px;border-radius:10px;font-size:10.5px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:18px;align-items:start}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:18px}
 .card{
-  position:relative;display:block;text-decoration:none;color:inherit;
+  position:relative;display:flex;text-decoration:none;color:inherit;
   background:#2c2b2c;border-radius:16px;padding:2px;overflow:hidden;isolation:isolate;
   box-shadow:0 22px 28px -10px rgba(0,0,0,.55),0 10px 14px -6px rgba(0,0,0,.35);
   transition:transform .5s cubic-bezier(.4,0,.2,1),box-shadow .5s,opacity .3s
@@ -39,7 +39,7 @@ header .meta span b{color:var(--mut);font-weight:500}
   transition:opacity .5s,transform .5s
 }
 .card .face{
-  position:relative;z-index:1;
+  position:relative;z-index:1;flex:1;min-width:0;
   background:rgba(20,19,20,.94);
   border-radius:14px;
   padding:22px 22px 20px;
@@ -106,10 +106,10 @@ header .meta span b{color:var(--mut);font-weight:500}
   text-shadow:0 1px 0 rgba(0,0,0,.5)
 }
 .card .desc{
-  color:#a5acba;font-size:12.5px;line-height:1.55;flex:1;
+  color:#a5acba;font-size:12.5px;line-height:1.55;
   text-shadow:0 1px 0 rgba(0,0,0,.4)
 }
-.card .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:auto}
+.card .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:auto;padding-top:14px}
 .card .tag{
   font-family:var(--mono);font-size:10px;
   background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
