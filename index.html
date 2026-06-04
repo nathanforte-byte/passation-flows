@@ -26,80 +26,45 @@ header .meta span b{color:var(--mut);font-weight:500}
 .section .ct{background:#1d2129;color:var(--mut);padding:2px 8px;border-radius:10px;font-size:10.5px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:18px}
 .card{
-  background:
-    linear-gradient(180deg,rgba(255,255,255,.045) 0%,transparent 22%,transparent 78%,rgba(0,0,0,.22) 100%),
-    linear-gradient(145deg,#11151c 0%,#070a0f 50%,#11151c 100%);
-  border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:22px 22px 20px;
-  transition:transform .5s cubic-bezier(.4,0,.2,1),border-color .5s,box-shadow .5s,opacity .3s;
-  text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:12px;
-  position:relative;overflow:hidden;isolation:isolate;
-  box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,.16),
-    inset 0 0 0 1px rgba(255,255,255,.03),
-    inset 0 -1.5px 0 rgba(0,0,0,.55),
-    inset 0 16px 28px -16px rgba(255,255,255,.07),
-    inset 0 -24px 40px -22px rgba(0,0,0,.45),
-    0 1px 0 rgba(255,255,255,.05),
-    0 14px 32px -14px rgba(0,0,0,.7),
-    0 4px 12px -4px rgba(0,0,0,.5)
+  position:relative;display:block;text-decoration:none;color:inherit;
+  background:#3d3c3d;border-radius:16px;padding:2px;overflow:hidden;isolation:isolate;
+  box-shadow:0 22px 28px -10px rgba(0,0,0,.55),0 10px 14px -6px rgba(0,0,0,.35);
+  transition:transform .5s cubic-bezier(.4,0,.2,1),box-shadow .5s,opacity .3s
 }
-.card::before{
-  content:"";position:absolute;left:-60px;bottom:-60px;width:200px;height:200px;border-radius:50%;
-  background:radial-gradient(circle,rgba(255,255,255,.10),transparent 70%);
-  filter:blur(40px);opacity:.30;
-  transition:opacity .7s ease,transform .7s ease;
-  z-index:0;pointer-events:none
+.card .glow{
+  position:absolute;width:60%;height:75%;
+  background:#fff;filter:blur(50px);
+  top:-32%;left:-22%;opacity:.95;z-index:0;
+  pointer-events:none;
+  transition:opacity .5s,transform .5s
 }
-.card::after{
+.card .face{
+  position:relative;z-index:1;
+  background:rgba(50,49,50,.92);
+  border-radius:14px;
+  padding:22px 22px 20px;
+  display:flex;flex-direction:column;gap:12px;
+  overflow:hidden;isolation:isolate
+}
+.card .face::after{
   content:"";position:absolute;inset:0;
-  background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.08) 50%,transparent 70%);
-  transform:translateX(-120%);
-  z-index:0;pointer-events:none
+  background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.10) 50%,transparent 70%);
+  transform:translateX(-120%);z-index:0;pointer-events:none
 }
-.card > *{position:relative;z-index:1}
+.card .face > *{position:relative;z-index:1}
 .card:hover{
   transform:translateY(-5px) scale(1.02);
-  border-color:rgba(255,255,255,.24);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,.22),
-    inset 0 0 0 1px rgba(255,255,255,.06),
-    inset 0 -1.5px 0 rgba(0,0,0,.6),
-    inset 0 18px 32px -16px rgba(255,255,255,.10),
-    inset 0 -28px 44px -22px rgba(0,0,0,.5),
-    0 2px 0 rgba(255,255,255,.07),
-    0 36px 70px -20px rgba(0,0,0,.8),
-    0 14px 34px -14px rgba(0,0,0,.6)
+  box-shadow:0 32px 44px -14px rgba(0,0,0,.65),0 14px 22px -8px rgba(0,0,0,.4)
 }
-.card:hover::before{opacity:.55;transform:scale(1.15)}
-.card:hover::after{animation:card-shine .9s ease forwards}
+.card:hover .glow{opacity:1;transform:scale(1.1)}
+.card:hover .face::after{animation:card-shine .9s ease forwards}
 @keyframes card-shine{
   0%{transform:translateX(120%)}
   100%{transform:translateX(-120%)}
 }
-.card .corner{position:absolute;width:72px;height:72px;opacity:0;transition:opacity .5s ease;pointer-events:none;z-index:0}
-.card .corner.tl{top:0;left:0;background:linear-gradient(135deg,rgba(255,255,255,.10),transparent 70%);border-radius:0 0 24px 0}
-.card .corner.br{bottom:0;right:0;background:linear-gradient(315deg,rgba(255,255,255,.10),transparent 70%);border-radius:24px 0 0 0}
-.card:hover .corner{opacity:1}
-.card.live{
-  box-shadow:
-    inset 3px 0 0 var(--loop),
-    inset 0 1px 0 rgba(255,255,255,.10),
-    inset 0 0 0 1px rgba(255,255,255,.02),
-    inset 0 -1px 0 rgba(0,0,0,.5),
-    0 1px 0 rgba(255,255,255,.04),
-    0 10px 24px -10px rgba(0,0,0,.6)
-}
-.card.live:hover{
-  box-shadow:
-    inset 3px 0 0 var(--loop),
-    inset 0 1px 0 rgba(255,255,255,.18),
-    inset 0 0 0 1px rgba(255,255,255,.05),
-    inset 0 -1px 0 rgba(0,0,0,.55),
-    0 2px 0 rgba(255,255,255,.06),
-    0 30px 60px -18px rgba(0,0,0,.8),
-    0 12px 30px -12px rgba(0,0,0,.55),
-    0 0 50px -12px rgba(255,212,121,.22)
-}
+.card.live .face{box-shadow:inset 3px 0 0 var(--loop)}
+.card.live .glow{background:linear-gradient(180deg,#fff 0%,#ffe49d 100%)}
+.card.live:hover{box-shadow:0 32px 44px -14px rgba(0,0,0,.65),0 14px 22px -8px rgba(0,0,0,.4),0 0 40px -14px rgba(255,212,121,.25)}
 .card .top{display:flex;align-items:flex-start;gap:12px}
 .card .ic{
   width:44px;height:44px;border-radius:11px;
@@ -194,14 +159,16 @@ fetch('manifest.json').then(r=>r.json()).then(m=>{
   document.getElementById('ct-live').textContent=live.length;
   document.getElementById('ct-plan').textContent=plan.length;
   const card=f=>`<a class="card ${f.status}" href="${f.status==='live'?`flows/${f.slug}.html`:'#'}" ${f.status!=='live'?'onclick="event.preventDefault()"':''}>
-    <span class="corner tl"></span><span class="corner br"></span>
-    <span class="status ${f.status}">${f.status}</span>
-    <div class="top">
-      <div class="ic">${f.icon||'•'}</div>
-      <div class="titles"><h3>${f.title}</h3>${f.file?`<div class="file">${f.file}</div>`:''}</div>
+    <div class="glow"></div>
+    <div class="face">
+      <span class="status ${f.status}">${f.status}</span>
+      <div class="top">
+        <div class="ic">${f.icon||'•'}</div>
+        <div class="titles"><h3>${f.title}</h3>${f.file?`<div class="file">${f.file}</div>`:''}</div>
+      </div>
+      <div class="desc">${f.description||''}</div>
+      <div class="tags">${(f.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
     </div>
-    <div class="desc">${f.description||''}</div>
-    <div class="tags">${(f.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
   </a>`;
   document.getElementById('grid-live').innerHTML = live.map(card).join('');
   document.getElementById('grid-plan').innerHTML = plan.map(card).join('');
