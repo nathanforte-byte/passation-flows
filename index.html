@@ -120,9 +120,13 @@ header .meta span b{color:var(--mut);font-weight:500}
     inset 0 -1px 0 rgba(0,0,0,.35);
   text-shadow:0 1px 0 rgba(0,0,0,.5)
 }
-.card .status{position:absolute;top:18px;right:18px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:3px 8px;border-radius:5px;font-weight:600;z-index:2}
+.card .status{position:absolute;top:18px;right:18px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:3px 8px;border-radius:5px;font-weight:600;z-index:2;display:flex;align-items:center;gap:6px}
 .card .status.live{background:rgba(255,212,121,.15);color:var(--loop);border:1px solid rgba(255,212,121,.3)}
 .card .status.planned{background:rgba(138,148,164,.12);color:var(--plan);border:1px solid var(--line)}
+.card .health{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--mut);box-shadow:0 0 6px rgba(0,0,0,.4)}
+.card .health.ok{background:#5ad19a;box-shadow:0 0 8px rgba(90,209,154,.7)}
+.card .health.bad{background:#e06c75;box-shadow:0 0 8px rgba(224,108,117,.7)}
+.card .health.unknown{background:var(--dim);box-shadow:none;opacity:.5}
 .card.planned{opacity:.72}
 .card.planned:hover{opacity:1}
 footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);color:var(--dim);font-size:12px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
@@ -149,19 +153,40 @@ footer code{font-family:var(--mono);color:var(--mut)}
   </footer>
 </div>
 <script>
-fetch('manifest.json').then(r=>r.json()).then(m=>{
+const HEALTH_URL = 'https://qeracszwzpkellfqjbgk.supabase.co/storage/v1/object/public/map-data/passation/health.json';
+
+function healthFor(flow, health){
+  const svcs = flow.railway_services || [];
+  if(!svcs.length || !health) return {cls:'', label:''};
+  const map = health.services || {};
+  const states = svcs.map(s => map[s]).filter(Boolean);
+  if(!states.length) return {cls:'unknown', label:'no data yet'};
+  const bad = states.filter(s => !s.healthy);
+  if(bad.length === 0) return {cls:'ok', label:`Railway · ${svcs.join(', ')} OK`};
+  const reasons = bad.map((s,i) => `${svcs[i]}: ${s.reason||s.status}`).join('\n');
+  return {cls:'bad', label:`Railway issue\n${reasons}`};
+}
+
+Promise.all([
+  fetch('manifest.json').then(r=>r.json()),
+  fetch(HEALTH_URL, {cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null),
+]).then(([m, health])=>{
   const live=m.flows.filter(f=>f.status==='live');
   const plan=m.flows.filter(f=>f.status!=='live');
+  const stamp = health ? new Date(health.generated_at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}) : 'pending';
   document.getElementById('meta').innerHTML =
     `<span><b>${m.flows.length}</b> flows total</span>`+
     `<span><b>${live.length}</b> live</span>`+
-    `<span><b>${plan.length}</b> planned</span>`;
+    `<span><b>${plan.length}</b> planned</span>`+
+    `<span>health · ${stamp}</span>`;
   document.getElementById('ct-live').textContent=live.length;
   document.getElementById('ct-plan').textContent=plan.length;
-  const card=f=>`<a class="card ${f.status}" href="${f.status==='live'?`flows/${f.slug}.html`:'#'}" ${f.status!=='live'?'onclick="event.preventDefault()"':''}>
+  const card=f=>{
+    const h = healthFor(f, health);
+    return `<a class="card ${f.status}" href="${f.status==='live'?`flows/${f.slug}.html`:'#'}" ${f.status!=='live'?'onclick="event.preventDefault()"':''}>
     <div class="glow"></div>
     <div class="face">
-      <span class="status ${f.status}">${f.status}</span>
+      <span class="status ${f.status}">${h.cls?`<span class="health ${h.cls}" title="${h.label.replace(/"/g,'&quot;')}"></span>`:''}${f.status}</span>
       <div class="top">
         <div class="ic">${f.icon||'•'}</div>
         <div class="titles"><h3>${f.title}</h3>${f.file?`<div class="file">${f.file}</div>`:''}</div>
@@ -170,6 +195,7 @@ fetch('manifest.json').then(r=>r.json()).then(m=>{
       <div class="tags">${(f.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
     </div>
   </a>`;
+  };
   document.getElementById('grid-live').innerHTML = live.map(card).join('');
   document.getElementById('grid-plan').innerHTML = plan.map(card).join('');
   if(!live.length){document.getElementById('sec-live').style.display='none';document.getElementById('grid-live').style.display='none';}

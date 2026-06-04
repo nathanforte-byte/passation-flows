@@ -8,7 +8,8 @@
       "status": "live",
       "tags": ["Exa", "Gemini", "agent loop", "outbound"],
       "description": "Trouve les décisionnaires (Owner / Director / Partner / HR) d'un établissement à partir de sa page LinkedIn company + son site web. Exa × Gemini agentic loop avec validation stricte localisation et fallback registre.",
-      "notion_page_id": "373cea10-85cc-81b8-9439-fde7b72ae57b"
+      "notion_page_id": "373cea10-85cc-81b8-9439-fde7b72ae57b",
+      "railway_services": []
     },
     {
       "slug": "recruiting-indeed-fr",
@@ -18,7 +19,8 @@
       "status": "live",
       "tags": ["Brightdata", "Haiku 4.5", "Perplexity", "Snowflake", "N8N", "SF"],
       "description": "Scrape offres Indeed FR (52 keywords) → Haiku anti-bruit → Perplexity SIRET → Snowflake match (Account/SIRET ou Phone via GMap fallback) → Supabase + N8N proxy → SF Lead.Intent__c = 'Recruiting Date'.",
-      "notion_page_id": "356cea10-85cc-8035-a9a7-f1fd773a9433"
+      "notion_page_id": "356cea10-85cc-8035-a9a7-f1fd773a9433",
+      "railway_services": ["recruiting-indeed-fr"]
     },
     {
       "slug": "modjo-automation",
@@ -28,7 +30,8 @@
       "status": "live",
       "tags": ["Diabolocom", "AssemblyAI", "Haiku 4.5", "Snowflake", "N8N", "SF"],
       "description": "Cron 22h Paris : pull appels BDR Diabolocom (FR + Barcelona), filter scope bot (KO Contacted + !Inbound), match Lead SF par phone, STT multichannel AssemblyAI (ch1=PROSPECT, ch2=BDR), analyse Haiku 4.5 → 15 outcomes vocab SF → push KOReason__c sur les 9 KO valides via N8N.",
-      "notion_page_id": "357cea10-85cc-81d5-8daa-dfdd612540db"
+      "notion_page_id": "357cea10-85cc-81d5-8daa-dfdd612540db",
+      "railway_services": ["modjo-bot"]
     },
     {
       "slug": "extension-enrich",
@@ -38,7 +41,8 @@
       "status": "live",
       "tags": ["Chrome MV3", "FastAPI SSE", "Lemlist", "Lusha", "Airscale", "Railway"],
       "description": "2 extensions Chrome (FR Lemlist + ES Lusha) qui enrichissent un profil LinkedIn (phone/email) en 1 clic. Backend FastAPI SSE sur Railway, fallback Airscale si primaire sans phone, tracking GSheet (FR only).",
-      "notion_page_id": "356cea10-85cc-80f9-9178-f0605297386c"
+      "notion_page_id": "356cea10-85cc-80f9-9178-f0605297386c",
+      "railway_services": ["lemlist-enrichment", "lusha-enrichment"]
     },
     {
       "slug": "skello-map",
@@ -48,7 +52,8 @@
       "status": "live",
       "tags": ["Vercel", "DeckGL", "Mapbox", "Supabase", "Snowflake", "Railway"],
       "description": "Carte outbound interne. Cron Railway horaire : Snowflake → gzip columnar → Supabase Storage. Frontend Vite + React + DeckGL avec OAuth Google @skello.io, filters synchronisés et feature Hunting (zones BDR).",
-      "notion_page_id": "358cea10-85cc-809a-83ba-d4973aa4f937"
+      "notion_page_id": "358cea10-85cc-809a-83ba-d4973aa4f937",
+      "railway_services": ["sync-map-data"]
     },
     {
       "slug": "taskforce-rework",
@@ -58,7 +63,8 @@
       "status": "live",
       "tags": ["Snowflake", "N8N", "SF", "cron weekly"],
       "description": "Cron samedi 10h : nettoie les doublons Taskforce SF. Migre Special_Campaign__c du lead Taskforce le plus récent vers le lead non-Taskforce postérieur si existe (sinon consolide). Safety : SKIP l'account si une open task → BDR works it.",
-      "notion_page_id": "35fcea10-85cc-8116-b694-e6448d0683b5"
+      "notion_page_id": "35fcea10-85cc-8116-b694-e6448d0683b5",
+      "railway_services": ["taskforce-rework"]
     }
   ]
 }
