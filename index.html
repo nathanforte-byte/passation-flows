@@ -26,11 +26,17 @@ header .meta span b{color:var(--mut);font-weight:500}
 .section .ct{background:#1d2129;color:var(--mut);padding:2px 8px;border-radius:10px;font-size:10.5px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:18px}
 .card{
-  background:linear-gradient(145deg,#010101 0%,#0a0d13 50%,#010101 100%);
+  background:linear-gradient(145deg,#0a0d13 0%,#05070a 50%,#0a0d13 100%);
   border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:22px 22px 20px;
   transition:transform .5s cubic-bezier(.4,0,.2,1),border-color .5s,box-shadow .5s,opacity .3s;
   text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:12px;
-  position:relative;overflow:hidden;isolation:isolate;backdrop-filter:blur(8px)
+  position:relative;overflow:hidden;isolation:isolate;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    inset 0 0 0 1px rgba(255,255,255,.02),
+    inset 0 -1px 0 rgba(0,0,0,.5),
+    0 1px 0 rgba(255,255,255,.04),
+    0 10px 24px -10px rgba(0,0,0,.6)
 }
 .card::before{
   content:"";position:absolute;left:-60px;bottom:-60px;width:200px;height:200px;border-radius:50%;
@@ -47,9 +53,15 @@ header .meta span b{color:var(--mut);font-weight:500}
 }
 .card > *{position:relative;z-index:1}
 .card:hover{
-  transform:scale(1.04);
+  transform:translateY(-4px) scale(1.02);
   border-color:rgba(255,255,255,.22);
-  box-shadow:0 24px 60px -20px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04)
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.16),
+    inset 0 0 0 1px rgba(255,255,255,.04),
+    inset 0 -1px 0 rgba(0,0,0,.55),
+    0 2px 0 rgba(255,255,255,.05),
+    0 30px 60px -18px rgba(0,0,0,.75),
+    0 12px 30px -12px rgba(0,0,0,.55)
 }
 .card:hover::before{opacity:.55;transform:scale(1.15)}
 .card:hover::after{animation:card-shine .9s ease forwards}
@@ -57,27 +69,30 @@ header .meta span b{color:var(--mut);font-weight:500}
   0%{transform:translateX(120%)}
   100%{transform:translateX(-120%)}
 }
-.card .dot{
-  position:absolute;width:6px;height:6px;border-radius:50%;
-  background:#fff;
-  box-shadow:0 0 10px 2px rgba(255,255,255,.75),0 0 22px 4px rgba(255,255,255,.35);
-  opacity:0;z-index:3;pointer-events:none;
-  top:6px;right:6px;
-  transition:opacity .4s ease
-}
-.card:hover .dot{opacity:1;animation:dot-trace 4.5s linear infinite}
-@keyframes dot-trace{
-  0%,100%{top:6px;right:6px}
-  25%{top:6px;right:calc(100% - 12px)}
-  50%{top:calc(100% - 12px);right:calc(100% - 12px)}
-  75%{top:calc(100% - 12px);right:6px}
-}
 .card .corner{position:absolute;width:72px;height:72px;opacity:0;transition:opacity .5s ease;pointer-events:none;z-index:0}
 .card .corner.tl{top:0;left:0;background:linear-gradient(135deg,rgba(255,255,255,.10),transparent 70%);border-radius:0 0 24px 0}
 .card .corner.br{bottom:0;right:0;background:linear-gradient(315deg,rgba(255,255,255,.10),transparent 70%);border-radius:24px 0 0 0}
 .card:hover .corner{opacity:1}
-.card.live{box-shadow:inset 3px 0 0 var(--loop)}
-.card.live:hover{box-shadow:inset 3px 0 0 var(--loop),0 24px 60px -20px rgba(0,0,0,.75),0 0 0 1px rgba(255,212,121,.14),0 0 40px -10px rgba(255,212,121,.15)}
+.card.live{
+  box-shadow:
+    inset 3px 0 0 var(--loop),
+    inset 0 1px 0 rgba(255,255,255,.10),
+    inset 0 0 0 1px rgba(255,255,255,.02),
+    inset 0 -1px 0 rgba(0,0,0,.5),
+    0 1px 0 rgba(255,255,255,.04),
+    0 10px 24px -10px rgba(0,0,0,.6)
+}
+.card.live:hover{
+  box-shadow:
+    inset 3px 0 0 var(--loop),
+    inset 0 1px 0 rgba(255,255,255,.18),
+    inset 0 0 0 1px rgba(255,255,255,.05),
+    inset 0 -1px 0 rgba(0,0,0,.55),
+    0 2px 0 rgba(255,255,255,.06),
+    0 30px 60px -18px rgba(0,0,0,.8),
+    0 12px 30px -12px rgba(0,0,0,.55),
+    0 0 50px -12px rgba(255,212,121,.22)
+}
 .card .top{display:flex;align-items:flex-start;gap:12px}
 .card .ic{width:44px;height:44px;border-radius:11px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);display:grid;place-items:center;font-size:22px;flex-shrink:0;transition:transform .5s,background .5s}
 .card.live .ic{background:rgba(255,212,121,.08);border-color:rgba(255,212,121,.18);color:var(--loop)}
@@ -128,7 +143,6 @@ fetch('manifest.json').then(r=>r.json()).then(m=>{
   document.getElementById('ct-plan').textContent=plan.length;
   const card=f=>`<a class="card ${f.status}" href="${f.status==='live'?`flows/${f.slug}.html`:'#'}" ${f.status!=='live'?'onclick="event.preventDefault()"':''}>
     <span class="corner tl"></span><span class="corner br"></span>
-    <span class="dot"></span>
     <span class="status ${f.status}">${f.status}</span>
     <div class="top">
       <div class="ic">${f.icon||'•'}</div>
