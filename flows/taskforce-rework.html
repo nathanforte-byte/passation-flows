@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../shared/flow.css">
+</head>
+<body>
+<script>
+window.FLOW = {
+  meta:{ title:"Taskforce rework", file:"taskforce-rework · Railway samedi 10h" },
+  canvas:{ w:2100, h:700 },
+  legend:[
+    {label:'Cron',color:'var(--trig)'},
+    {label:'Snowflake',color:'var(--db)'},
+    {label:'Plan logic',color:'var(--code)'},
+    {label:'N8N → SF',color:'var(--exa)'},
+    {label:'IF / branch',color:'var(--if)'},
+    {label:'Output',color:'var(--out)'}
+  ],
+  nodes:{
+    trig:{x:30, y:320,kind:'trig',ic:'⏱',nm:'CRON Railway',ttl:'samedi 10h Paris',sb:'0 8 * * 6 UTC · NEVER restart'},
+    s1:  {x:240,y:320,kind:'db', ic:'❄',nm:'SNOWFLAKE',ttl:'1 · Query Taskforce + Tasks',sb:'STG_RAUL_LEADS + STG_RAUL_TASKS'},
+    s2:  {x:480,y:320,kind:'code',ic:'⊞',nm:'PLAN per account',ttl:'2 · Compute tf_top / older / target',sb:'group by account_id'},
+    if1: {x:740,y:328,kind:'if',ic:'◆',ttl:'open task ?'},
+    skip:{x:700,y:90,kind:'out',ic:'⊘',nm:'SKIP',ttl:'BDR works it',sb:'no write · safety first'},
+    if2: {x:940,y:328,kind:'if',ic:'◆',ttl:'target lead ?'},
+    mig: {x:1190,y:160,kind:'code',ic:'⇶',nm:'MIGRATE',ttl:'3a · target exists',sb:'SET target + CLEAR tf_top + CLEAR older'},
+    con: {x:1190,y:500,kind:'code',ic:'⇆',nm:'CONSOLIDATE',ttl:'3b · no target',sb:'KEEP tf_top + CLEAR older'},
+    s4:  {x:1500,y:320,kind:'exa',ic:'⇄',nm:'N8N crm-proxy',ttl:'4 · SF Special_Campaign__c',sb:'SLEEP_MS=200 · ~5 req/s'},
+    if3: {x:1740,y:328,kind:'if',ic:'◆',ttl:'DRY_RUN ?'},
+    log: {x:1900,y:160,kind:'out',ic:'📝',nm:'LOG only',ttl:'dry · no SF write',sb:'count ops, no PATCH'},
+    out: {x:1900,y:500,kind:'out',ic:'▦',nm:'SF UPDATED',ttl:'~35k ops first run',sb:'~2h full run throttled'}
+  },
+  edges:[
+    ['trig','r','s1','l','',''],
+    ['s1','r','s2','l','',''],
+    ['s2','r','if1','l','',''],
+    ['if1','t','skip','b','✗ has open task','f'],
+    ['if1','r','if2','l','✓ no open task','t'],
+    ['if2','t','mig','b','target exists','t'],
+    ['if2','b','con','t','no target','f'],
+    ['mig','r','s4','l','',''],
+    ['con','r','s4','l','',''],
+    ['s4','r','if3','l','',''],
+    ['if3','t','log','b','DRY_RUN=true','f'],
+    ['if3','b','out','t','live','t'],
+  ],
+  walk:['trig','s1','s2','if1','if2','mig','s4','if3','out'],
+  details:{
+    trig:{h:'Railway cron',t:'Samedi 10h Paris été',d:'Service `taskforce-rework` (ID `b2a286ba-973c-4bc6-bba0-1b9ddf7369cb`). Cron `0 8 * * 6` UTC. Run hebdo le samedi matin (volumes plus calmes côté équipe sales).'},
+    s1:{h:'Snowflake · query',t:'1 · Pull Taskforce leads + tasks',d:'`STG_RAUL_LEADS` filtré sur `SPECIAL_CAMPAIGN ILIKE \'Taskforce%\'`. Joint avec `STG_RAUL_TASKS` (`WHO_ID = lead.ID`) pour détecter les open tasks (`IS_CLOSED=FALSE AND TASK_DATE >= CURRENT_DATE`).',io:[['out','leads + tasks']],code:`SELECT l.id, l.account_id, l.special_campaign,
+       l.created_at, l.special_campaign_value,
+       MAX(t.is_open) AS has_open_task
+FROM STG_RAUL_LEADS l
+LEFT JOIN STG_RAUL_TASKS t ON t.who_id = l.id
+WHERE l.SPECIAL_CAMPAIGN ILIKE 'Taskforce%'
+  -- optional: AND special_campaign IN :SOURCE_CAMPAIGNS
+GROUP BY ...`,ct:'SQL'},
+    s2:{h:'Plan per account',t:'2 · Compute tf_top / older / target',d:'Pour chaque account ayant ≥1 lead Taskforce :\n- **tf_top** = lead Taskforce le plus récent (CREATED_AT DESC)\n- **older_tf** = autres leads Taskforce sur le même account\n- **target** = lead non-Taskforce (NOT ILIKE \'Taskforce%\') le plus récent **strictement après** tf_top, si existe',io:[['in','leads grouped'],['out','plan{account → ops[]}']]},
+    if1:{h:'Branch · safety',t:'Any open task on this account ?',d:'**Règle de safety absolue.** Si AU MOINS UN lead Taskforce de l\'account a une open task → SKIP l\'account entier, aucun write. Le BDR bosse activement, c\'est lui la source de vérité.',io:[['has open','→ SKIP'],['none','→ continue']]},
+    skip:{h:'Skip account',t:'BDR works this account',d:'L\'account est verrouillé tant qu\'au moins un de ses leads Taskforce a une open task. Re-tenté la semaine suivante. ~477 accounts verrouillés au premier run (mai 2026).'},
+    if2:{h:'Branch · plan type',t:'Target lead exists ?',d:'Détermine la stratégie : MIGRATE si on a un lead non-Taskforce plus récent à enrichir, sinon CONSOLIDATE.',io:[['target ✓','→ MIGRATE'],['no target','→ CONSOLIDATE']]},
+    mig:{h:'MIGRATE',t:'3a · target exists',d:'**3 ops par account** : SET `target.Special_Campaign__c = tf_top.SPECIAL_CAMPAIGN`, CLEAR tf_top, CLEAR chaque older_tf. ~5 351 MIGRATE accounts au premier run → ~10 702 SET+CLEAR + le CLEAR_OLDER.',io:[['ops','SET + CLEAR + CLEAR×N']]},
+    con:{h:'CONSOLIDATE',t:'3b · no target',d:'Pas de lead non-Taskforce plus récent → on garde la valeur sur tf_top et on nettoie juste les doublons sur older_tf.',io:[['ops','CLEAR×N (older only)']]},
+    s4:{h:'N8N crm-proxy',t:'4 · Push SF Special_Campaign__c',d:'Même webhook partagé que modjo-bot et recruiting. **Throttling** `SLEEP_MS=200` → ~5 req/s → ~2h pour un full run de ~35k ops. Validation côté N8N (schema cache).',io:[['in','{lead_id, fields}'],['out','SF PATCH ack']],code:`# SET target
+crm_update(object_type="Lead", object_id=target_lead_id,
+  fields={"Special_Campaign__c": "Taskforce Intermarché Super"},
+  source_project="taskforce-rework")
+
+# CLEAR sur tf_top + older_tf
+crm_update(object_type="Lead", object_id=lead_id,
+  fields={"Special_Campaign__c": None},
+  source_project="taskforce-rework")`,ct:'crm_proxy.py'},
+    if3:{h:'Branch',t:'DRY_RUN flag',d:'`DRY_RUN=true` par défaut pour les tests : log les ops sans push SF. Passer `false` pour live. `LIMIT=N` pour couper à N ops.',io:[['true','→ logs only'],['false','→ live SF']]},
+    log:{h:'Logs only',t:'Dry-run output',d:'Stats par bucket : SET_TARGET, CLEAR_TF_TOP, CLEAR_OLDER_TF. Tests progressifs réalisés mai 2026 : DRY full (35k ops, 0 fail) → live LIMIT=10 (10/10 OK) → live Brico scope (460/461 OK, 1 fail validation phone SF).'},
+    out:{h:'SF updated',t:'Live run output',d:'~35 494 ops planifiées au premier run (mai 2026) : ~5 351 SET_TARGET + ~5 351 CLEAR_TF_TOP + ~24 792 CLEAR_OLDER_TF. Runs suivants hebdo → uniquement nouveaux doublons/migrations.'}
+  }
+};
+</script>
+<script src="../shared/flow.js"></script>
+</body>
+</html>

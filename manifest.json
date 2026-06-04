@@ -2,23 +2,63 @@
   "flows": [
     {
       "slug": "find-company-contacts",
-      "title": "Contacts agent",
-      "file": "find_company_contacts.py",
+      "title": "find_company_contacts.py",
+      "file": "Agent contacts (Exa × Gemini)",
       "icon": "🕵️",
       "status": "live",
       "tags": ["Exa", "Gemini", "agent loop", "outbound"],
-      "description": "Finds decision-makers (Owner / Director / Partner / HR) for a company from its LinkedIn page + website. Exa × Gemini agentic loop with strict location validation and registry fallback."
+      "description": "Trouve les décisionnaires (Owner / Director / Partner / HR) d'un établissement à partir de sa page LinkedIn company + son site web. Exa × Gemini agentic loop avec validation stricte localisation et fallback registre.",
+      "notion_page_id": "373cea10-85cc-81b8-9439-fde7b72ae57b"
     },
-    { "slug": "modjo-bot", "title": "Modjo automation", "file": "modjo-bot · Railway", "icon": "📞", "status": "live", "tags": ["Snowflake", "Supabase", "N8N", "Modjo"], "description": "Reads Snowflake (RAUL), writes to dedicated Supabase, pushes back to SF via N8N proxy. Logs batch via _log_batch_outcome." },
-    { "slug": "modjo-de-wish", "title": "Modjo de wish (Diabolocom)", "file": "Diabolocom · STT · qualif", "icon": "🎧", "status": "live", "tags": ["Diabolocom", "AssemblyAI", "Haiku 4.5", "Sonnet 4.6"], "description": "STT + qualif on Diabolocom calls. Haiku 4.5 default, Sonnet fallback for qualif/scoring. Stereo ch1=PROSPECT / ch2=BDR." },
-    { "slug": "google-leads-dedup", "title": "Google Leads dedup", "file": "split NEW/OLD · phone · BAN", "icon": "📍", "status": "live", "tags": ["Snowflake", "BAN", "dedup", "geo"], "description": "Split NEW/OLD vs STG_RAUL_LEADS, dedup phone/domain + 2-stage geo FR via result_id BAN, local cache." },
-    { "slug": "building-enrichment", "title": "Building leads enrichment", "icon": "🏗", "status": "planned", "tags": ["FullEnrich", "Exa", "Gemini", "BTP"], "description": "FullEnrich first + Exa/Gemini fallback. 126 BTP leads ES." },
-    { "slug": "update-intent", "title": "Update Intent (Slack digest)", "icon": "📢", "status": "planned", "tags": ["Slack", "GH Actions", "cron"], "description": "Cron GH Actions 2x/day. First ZZ team send scheduled 2026-04-29 09:10." },
-    { "slug": "skello-map", "title": "Skello Map (Chasse Terrain)", "icon": "🗺", "status": "planned", "tags": ["Vercel", "Snowflake", "Supabase Storage"], "description": "Source hospitality-map@main, backup cnea-backup, host Vercel perso. Push = 3 steps." },
-    { "slug": "sync-map-data", "title": "sync-map-data (Railway cron)", "icon": "⏱", "status": "planned", "tags": ["Railway", "Snowflake", "Supabase Storage"], "description": "Snowflake → Supabase Storage migré du GH Actions vers Railway cron horaire." },
-    { "slug": "estuaire", "title": "Estuaire — contrail map", "icon": "✈️", "status": "planned", "tags": ["OpenSky", "GH Actions", "Vercel", "Supabase"], "description": "GH Actions cron 5min → fetch OpenSky+weather → Supabase opensky_latest → Vercel reads. Azure-only (GCP/AWS/CF blacklisted)." },
-    { "slug": "veille", "title": "Daily veille", "icon": "📰", "status": "planned", "tags": ["Reddit", "GitHub", "Supabase", "Vercel"], "description": "Reddit + GitHub + Exa → Supabase veille_items. Dashboard Vercel avec OTP via Gmail." },
-    { "slug": "brand-voice", "title": "Brand voice skill", "icon": "🎙", "status": "planned", "tags": ["Claude skill", "multi-brand"], "description": "Multi-brand voice / translation skill. Template 14 sections + brands/skello-en.md." },
-    { "slug": "notion-passation", "title": "Notion passation skill", "icon": "📋", "status": "planned", "tags": ["Claude skill", "Notion"], "description": "Toggles fiches : Schéma / Description / Links / Coûts / MD. User-level skill." }
+    {
+      "slug": "recruiting-indeed-fr",
+      "title": "Recruiting automation",
+      "file": "recruiting-indeed-fr · Railway",
+      "icon": "🧳",
+      "status": "live",
+      "tags": ["Brightdata", "Haiku 4.5", "Perplexity", "Snowflake", "N8N", "SF"],
+      "description": "Scrape offres Indeed FR (52 keywords) → Haiku anti-bruit → Perplexity SIRET → Snowflake match (Account/SIRET ou Phone via GMap fallback) → Supabase + N8N proxy → SF Lead.Intent__c = 'Recruiting Date'.",
+      "notion_page_id": "356cea10-85cc-8035-a9a7-f1fd773a9433"
+    },
+    {
+      "slug": "modjo-automation",
+      "title": "Modjo automation",
+      "file": "modjo-bot · Railway cron",
+      "icon": "📞",
+      "status": "live",
+      "tags": ["Diabolocom", "AssemblyAI", "Haiku 4.5", "Snowflake", "N8N", "SF"],
+      "description": "Cron 22h Paris : pull appels BDR Diabolocom (FR + Barcelona), filter scope bot (KO Contacted + !Inbound), match Lead SF par phone, STT multichannel AssemblyAI (ch1=PROSPECT, ch2=BDR), analyse Haiku 4.5 → 15 outcomes vocab SF → push KOReason__c sur les 9 KO valides via N8N.",
+      "notion_page_id": "357cea10-85cc-81d5-8daa-dfdd612540db"
+    },
+    {
+      "slug": "extension-enrich",
+      "title": "Extension enrich",
+      "file": "Chrome MV3 · Lemlist (FR) + Lusha (ES)",
+      "icon": "☎️",
+      "status": "live",
+      "tags": ["Chrome MV3", "FastAPI SSE", "Lemlist", "Lusha", "Airscale", "Railway"],
+      "description": "2 extensions Chrome (FR Lemlist + ES Lusha) qui enrichissent un profil LinkedIn (phone/email) en 1 clic. Backend FastAPI SSE sur Railway, fallback Airscale si primaire sans phone, tracking GSheet (FR only).",
+      "notion_page_id": "356cea10-85cc-80f9-9178-f0605297386c"
+    },
+    {
+      "slug": "skello-map",
+      "title": "Skello map",
+      "file": "hospitality-map · Vercel + Railway sync",
+      "icon": "🗺️",
+      "status": "live",
+      "tags": ["Vercel", "DeckGL", "Mapbox", "Supabase", "Snowflake", "Railway"],
+      "description": "Carte outbound interne. Cron Railway horaire : Snowflake → gzip columnar → Supabase Storage. Frontend Vite + React + DeckGL avec OAuth Google @skello.io, filters synchronisés et feature Hunting (zones BDR).",
+      "notion_page_id": "358cea10-85cc-809a-83ba-d4973aa4f937"
+    },
+    {
+      "slug": "taskforce-rework",
+      "title": "Rework Taskforce special_campaign",
+      "file": "taskforce-rework · Railway samedi",
+      "icon": "🧹",
+      "status": "live",
+      "tags": ["Snowflake", "N8N", "SF", "cron weekly"],
+      "description": "Cron samedi 10h : nettoie les doublons Taskforce SF. Migre Special_Campaign__c du lead Taskforce le plus récent vers le lead non-Taskforce postérieur si existe (sinon consolide). Safety : SKIP l'account si une open task → BDR works it.",
+      "notion_page_id": "35fcea10-85cc-8116-b694-e6448d0683b5"
+    }
   ]
 }

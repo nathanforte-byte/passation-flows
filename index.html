@@ -54,10 +54,10 @@ footer code{font-family:var(--mono);color:var(--mut)}
     <div class="meta" id="meta"></div>
   </header>
 
-  <div class="section">Live <span class="ct" id="ct-live">0</span></div>
+  <div class="section" id="sec-live">Live <span class="ct" id="ct-live">0</span></div>
   <div class="grid" id="grid-live"></div>
 
-  <div class="section">Planned <span class="ct" id="ct-plan">0</span></div>
+  <div class="section" id="sec-plan">Planned <span class="ct" id="ct-plan">0</span></div>
   <div class="grid" id="grid-plan"></div>
 
   <footer>
@@ -86,6 +86,8 @@ fetch('manifest.json').then(r=>r.json()).then(m=>{
   </a>`;
   document.getElementById('grid-live').innerHTML = live.map(card).join('');
   document.getElementById('grid-plan').innerHTML = plan.map(card).join('');
+  if(!live.length){document.getElementById('sec-live').style.display='none';document.getElementById('grid-live').style.display='none';}
+  if(!plan.length){document.getElementById('sec-plan').style.display='none';document.getElementById('grid-plan').style.display='none';}
 });
 </script>
 </body>

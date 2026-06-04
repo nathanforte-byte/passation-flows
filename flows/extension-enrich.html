@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../shared/flow.css">
+</head>
+<body>
+<script>
+window.FLOW = {
+  meta:{ title:"Extension enrich", file:"Chrome MV3 · Lemlist (FR) + Lusha (ES)" },
+  canvas:{ w:2000, h:640 },
+  legend:[
+    {label:'Chrome ext',color:'var(--trig)'},
+    {label:'Railway (FastAPI SSE)',color:'var(--exa)'},
+    {label:'Provider',color:'var(--gem)'},
+    {label:'Airscale fallback',color:'var(--api)'},
+    {label:'Google Sheet',color:'var(--db)'},
+    {label:'UI panel',color:'var(--out)'}
+  ],
+  nodes:{
+    // FR row (top)
+    chr_fr:{x:30, y:120,kind:'trig',ic:'🇫🇷',nm:'CHROME ext FR',ttl:'Lemlist Enricher v1.5.1',sb:'click button → SSE /enrich?url=...'},
+    rly_fr:{x:300,y:120,kind:'exa', ic:'🚂',nm:'RAILWAY FR',ttl:'lemlist-enrichment-prod',sb:'FastAPI SSE · stream events'},
+    lem:   {x:560,y:120,kind:'gem',ic:'✉', nm:'LEMLIST',ttl:'1 · /api/people/find',sb:'Basic auth · phone/email/company'},
+    if_fr: {x:830,y:128,kind:'if', ic:'◆',ttl:'phone ?'},
+    air_fr:{x:1020,y:30,kind:'api',ic:'🛬',nm:'AIRSCALE',ttl:'2 · phone fallback',sb:'only if Lemlist returned no phone'},
+    gsh:   {x:1280,y:30,kind:'db', ic:'📊',nm:'GOOGLE SHEET',ttl:'3 · Track (Apps Script)',sb:'timestamp · user · source'},
+    sse_fr:{x:1550,y:120,kind:'out',ic:'⇢',nm:'SSE done',ttl:'step:lemlist / airscale / done',sb:'live stepper in extension'},
+    ui_fr: {x:1790,y:120,kind:'out',ic:'▦',nm:'UI panel',ttl:'Résumé / Brut / Logs',sb:'phone copyable · ready for SF'},
+    // ES row (bottom)
+    chr_es:{x:30, y:480,kind:'trig',ic:'🇪🇸',nm:'CHROME ext ES',ttl:'Lusha Enricher v1.0.1',sb:'UI violette · langue ES'},
+    rly_es:{x:300,y:480,kind:'exa', ic:'🚂',nm:'RAILWAY ES',ttl:'lusha-enrichment-prod',sb:'FastAPI SSE · 2 steps'},
+    lus:   {x:560,y:480,kind:'gem',ic:'🌐',nm:'LUSHA',ttl:'1 · GET /v2/person',sb:'api_key header · phones[] emails[]'},
+    if_es: {x:830,y:488,kind:'if', ic:'◆',ttl:'phone ?'},
+    air_es:{x:1020,y:580,kind:'api',ic:'🛬',nm:'AIRSCALE',ttl:'2 · phone fallback',sb:'only if Lusha returned no phone'},
+    sse_es:{x:1550,y:480,kind:'out',ic:'⇢',nm:'SSE done',ttl:'step:lusha / airscale / done',sb:'live stepper in extension'},
+    ui_es: {x:1790,y:480,kind:'out',ic:'▦',nm:'UI panel',ttl:'Résumé / Brut / Logs',sb:'phone copyable · ready for SF'},
+  },
+  edges:[
+    // FR
+    ['chr_fr','r','rly_fr','l','GET /enrich?url=',''],
+    ['rly_fr','r','lem','l','',''],
+    ['lem','r','if_fr','l','',''],
+    ['if_fr','t','air_fr','b','no phone','f'],
+    ['if_fr','r','sse_fr','l','phone ✓','t'],
+    ['air_fr','r','gsh','l','',''],
+    ['gsh','b','sse_fr','t','',''],
+    ['sse_fr','r','ui_fr','l','',''],
+    // ES
+    ['chr_es','r','rly_es','l','GET /enrich?url=',''],
+    ['rly_es','r','lus','l','',''],
+    ['lus','r','if_es','l','',''],
+    ['if_es','b','air_es','t','no phone','f'],
+    ['if_es','r','sse_es','l','phone ✓','t'],
+    ['air_es','r','sse_es','l','',''],
+    ['sse_es','r','ui_es','l','',''],
+  ],
+  walk:['chr_fr','rly_fr','lem','if_fr','air_fr','gsh','sse_fr','ui_fr'],
+  details:{
+    chr_fr:{h:'Chrome MV3 — FR',t:'LinkedIn → Lemlist + Airscale Enricher v1.5.1',d:'Manifest V3. `content.js` injecté sur `*.linkedin.com/*` au `document_start`, bouton flottant sur la page profil. Clic → message au background → fetch SSE Railway. Path local : `~/Downloads/LEMLIST LIVE 5/`.',io:[['trigger','clic bouton flottant sur profil LinkedIn']]},
+    rly_fr:{h:'Railway FR · backend',t:'lemlist-enrichment-production.up.railway.app',d:'FastAPI + SSE. Service ID `b1935847-0fb2-4c5f-a73e-68f17dd791ed`. Env vars : `LEMLIST_API_KEY`, `AIRSCALE_API_KEY`, `GSHEET_URL`. Workspace Railway = Skello Marketing, projet Outbound.',io:[['endpoint','GET /enrich?url=<linkedin_url>']]},
+    lem:{h:'Lemlist · primary',t:'1 · /api/people/find',d:'Source primaire FR. Endpoint `POST /api/people/find` (compte Skello). Auth `Authorization: Basic <base64(:LEMLIST_API_KEY)>`. Si OOC (out-of-credit) → stop, pas de fallback.',io:[['in','linkedinUrl'],['out','{phone, email, firstName, lastName, companyName}']],code:`POST https://api.lemlist.com/api/people/find
+Authorization: Basic <base64(":<LEMLIST_API_KEY>")>
+{ "linkedinUrl": "https://linkedin.com/in/..." }`,ct:'Lemlist call'},
+    if_fr:{h:'Branch',t:'phone returned ?',d:'Le fallback Airscale ne se déclenche QUE si Lemlist a renvoyé un résultat sans phone (pas si OOC).',io:[['phone ✓','→ stream done'],['no phone','→ Airscale']]},
+    air_fr:{h:'Airscale · fallback',t:'2 · Phone fallback',d:'Enrichit le phone depuis l\'URL LinkedIn. Si Airscale aussi sans phone → résultat partiel renvoyé (email/company OK, phone vide).',io:[['in','linkedinUrl'],['out','phone | null']]},
+    gsh:{h:'Google Sheet · tracking',t:'3 · Apps Script webhook',d:'Log par recherche : timestamp, user_email, linkedin_url, phone_found, source (Lemlist/Airscale). Permet suivi conso API, audit, détection doublons. **FR only** (ES n\'a pas de tracking).',io:[['out','row in shared sheet']]},
+    sse_fr:{h:'SSE · events',t:'Live stepper events',d:'Le backend stream des events successifs : `step:lemlist` → `step:airscale` → `step:sheet` → `done`. L\'extension affiche la progression en live.',io:[['events','step:* + done']]},
+    ui_fr:{h:'UI panel',t:'Résumé / Brut / Logs',d:'3 onglets dans le panneau de l\'extension. Phone copiable en 1 clic. Données prêtes à push manuel dans Salesforce.'},
+    chr_es:{h:'Chrome MV3 — ES',t:'Lusha Enricher v1.0.1',d:'Même architecture que FR mais : UI **violette** (#6C5CE7 → #A29BFE), langue ES, stepper 2 étapes (Lusha → Airscale), pas de tracking GSheet. Path local : `~/Downloads/LUSHA LIVE 1/`.'},
+    rly_es:{h:'Railway ES · backend',t:'lusha-enrichment-production.up.railway.app',d:'FastAPI + SSE. Service ID `186ef861-bc6f-4be1-9579-e02ea40c0167`. Env vars : `LUSHA_API_KEY`, `AIRSCALE_API_KEY` (pas de GSHEET_URL).'},
+    lus:{h:'Lusha · primary',t:'1 · GET /v2/person',d:'Source primaire ES. Auth `api_key: <LUSHA_API_KEY>` (header custom, pas Bearer).',io:[['in','linkedinUrl'],['out','{phoneNumbers[], emailAddresses[], name, company}']],code:`GET https://api.lusha.com/v2/person?linkedinUrl=<url>
+api_key: <LUSHA_API_KEY>`,ct:'Lusha call'},
+    if_es:{h:'Branch',t:'phone returned ?',d:'Comme FR — Airscale uniquement si pas de phone (et pas OOC).'},
+    air_es:{h:'Airscale · fallback',t:'2 · Phone fallback',d:'Même provider que la version FR.'},
+    sse_es:{h:'SSE · events',t:'2-step stepper',d:'`step:lusha` → `step:airscale` → `done` (pas de step:sheet).'},
+    ui_es:{h:'UI panel',t:'UI violette ES',d:'Même structure (Résumé/Brut/Logs) mais palette violette + textes en espagnol.'}
+  }
+};
+</script>
+<script src="../shared/flow.js"></script>
+</body>
+</html>

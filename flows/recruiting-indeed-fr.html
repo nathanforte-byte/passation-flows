@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../shared/flow.css">
+</head>
+<body>
+<script>
+window.FLOW = {
+  meta:{ title:"Recruiting automation", file:"recruiting-indeed-fr · Railway" },
+  canvas:{ w:2200, h:720 },
+  legend:[
+    {label:'Trigger',color:'var(--trig)'},
+    {label:'Brightdata',color:'var(--exa)'},
+    {label:'Haiku 4.5',color:'var(--gem)'},
+    {label:'Snowflake',color:'var(--db)'},
+    {label:'Supabase',color:'var(--api)'},
+    {label:'N8N → SF',color:'var(--out)'}
+  ],
+  nodes:{
+    trig:{x:30, y:320,kind:'trig',ic:'▶',nm:'MANUAL',ttl:'railway redeploy',sb:'no cron · ON_FAILURE'},
+    s1:  {x:230,y:320,kind:'exa', ic:'🕷',nm:'BRIGHTDATA',ttl:'1 · Indeed FR snapshot',sb:'dataset gd_l4dx9j9sscpvs7no2 · poll ready'},
+    if0: {x:470,y:328,kind:'if', ic:'◆',ttl:'concurrent kw ?'},
+    s2:  {x:430,y:130,kind:'gem',ic:'✦', nm:'HAIKU 4.5',ttl:'2 · Anti-noise classify',sb:'self-post · agence · ESN · combo'},
+    if1: {x:700,y:138,kind:'if', ic:'◆',ttl:'drop ?'},
+    drop:{x:880,y:50, kind:'out',ic:'⊘', nm:'DROP',ttl:'skipped',sb:'stats.claude_dropped++'},
+    s3:  {x:700,y:320,kind:'gem',ic:'✦', nm:'PERPLEXITY',ttl:'3 · SIRET lookup',sb:'model sonar · JSON strict'},
+    if2: {x:950,y:328,kind:'if', ic:'◆',ttl:'SIRET ?'},
+    s4:  {x:1140,y:200,kind:'db', ic:'❄', nm:'SNOWFLAKE',ttl:'4a · Match by SIRET',sb:'STG_RAUL_ACCOUNTS → LEADS'},
+    s5:  {x:1140,y:480,kind:'api',ic:'🌍',nm:'GOOGLE PLACES',ttl:'4b · Phone fallback',sb:'places:searchText → E.164'},
+    s6:  {x:1390,y:480,kind:'db', ic:'❄', nm:'SNOWFLAKE',ttl:'5 · Match by phone',sb:'STG_RAUL_LEADS · digits-only'},
+    s7:  {x:1390,y:320,kind:'api',ic:'⊡', nm:'SUPABASE',ttl:'6 · Upsert offres_emploi',sb:'path = SIRET | GMap | none'},
+    if3: {x:1650,y:328,kind:'if', ic:'◆',ttl:'Lead actif ?'},
+    s8:  {x:1840,y:200,kind:'out',ic:'⇄', nm:'N8N crm-proxy',ttl:'7 · SF Lead.Intent__c',sb:'= "Recruiting Date" + IntentComment'},
+    s9:  {x:1840,y:480,kind:'code',ic:'💬',nm:'SLACK ×2',ttl:'8 · Notify',sb:'detailed + digest channels'},
+    out: {x:2070,y:320,kind:'out',ic:'▦',nm:'OUTPUT',ttl:'SF updated · Slack sent',sb:''}
+  },
+  edges:[
+    ['trig','r','s1','l','',''],
+    ['s1','r','if0','l','',''],
+    ['if0','t','s2','b','competitor kw','t'],
+    ['s2','r','if1','l','',''],
+    ['if1','t','drop','b','drop','f'],
+    ['if1','b','s3','t','keep','t'],
+    ['if0','r','s3','l','default','t'],
+    ['s3','r','if2','l','',''],
+    ['if2','t','s4','b','SIRET found','t'],
+    ['if2','b','s5','t','SIRET null','f'],
+    ['s5','r','s6','l','',''],
+    ['s4','r','s7','l','',''],
+    ['s6','t','s7','b','',''],
+    ['s7','r','if3','l','',''],
+    ['if3','t','s8','b','✓ matched','t'],
+    ['if3','b','s9','t','no push','f'],
+    ['s8','r','out','l','',''],
+    ['s9','r','out','l','',''],
+  ],
+  walk:['trig','s1','if0','s2','if1','s3','if2','s4','s7','if3','s8','out'],
+  details:{
+    trig:{h:'Manual trigger',t:'No cron — manual redeploy',d:'Pas de cron Railway pour contrôler le volume Brightdata (cher). Lancement via `railway redeploy --service recruiting-indeed-fr`. restartPolicy = ON_FAILURE (sinon Railway relance en boucle un exit 0).',io:[['cmd','railway redeploy --service recruiting-indeed-fr']]},
+    s1:{h:'Brightdata · Indeed FR',t:'1 · Trigger snapshot + poll',d:'Dataset Indeed FR `gd_l4dx9j9sscpvs7no2`. 52 mots-clés (hôtellerie/resto/boulangerie + BTP + 8 concurrents SIRH/GTA). Poll jusqu\'à status `ready` (timeout WAIT_BETWEEN_ITEMS).',io:[['in','KEYWORDS[]'],['out','offres scrapées']],code:`POST https://api.brightdata.com/.../snapshots/trigger
+Authorization: Bearer <BRIGHTDATA_TOKEN>
+body: { dataset_id: "gd_l4dx9j9sscpvs7no2", keywords: [...] }`,ct:'Brightdata trigger'},
+    if0:{h:'Branch',t:'Concurrent keyword ?',d:'Si la keyword qui a généré l\'offre ∈ `COMPETITOR_KEYWORDS_FR` (combo, octime, snapshift, kelio, bodet, horoquartz, bizneo, orquest) → classification anti-bruit. Sinon → skip classify, direct ③.',io:[['yes','→ Haiku classify'],['no','→ direct Perplexity']]},
+    s2:{h:'Haiku 4.5 · classify',t:'2 · Anti-noise (competitor kw only)',d:'Filtre les faux positifs sur les keywords concurrents. JSON strict avec 4-5 booléens : self-post (Skello/Combo HR…), agence (Hays, RW, MP, Fed), intérim (Manpower, Adecco…), ESN (Capgemini, Sopra…), combo_ambiguous (menu combo, combo gagnant…).',io:[['in','{company, title, description[:2500]}'],['out','verdict JSON']],code:`{ "is_competitor_self_post": false,
+  "is_recruitment_agency": false,
+  "is_temp_agency": false,
+  "is_consulting_or_integrator": false,
+  "mentions_target_software": true }`,ct:'JSON verdict'},
+    if1:{h:'Branch',t:'Drop or keep ?',d:'Si au moins un drop=true → offre skippée + stats.claude_dropped++ + raison loggée. Sinon → continue Perplexity. Parse error → verdict permissif (keep).',io:[['drop','→ skipped + logs'],['keep','→ Perplexity']]},
+    drop:{h:'Drop',t:'Offre éliminée',d:'Comptée dans drops_by_reason et drops_by_keyword. Slack digest agrège les stats à la fin.'},
+    s3:{h:'Perplexity · SIRET',t:'3 · SIRET lookup',d:'Pour chaque offre kept : `chat/completions` model `sonar`, prompt JSON strict « donne-moi le SIRET de cette entreprise française ». Parse + retry.',io:[['in','{company, city}'],['out','{siret} | null']],code:`POST https://api.perplexity.ai/chat/completions
+Authorization: Bearer <PERPLEXITY_API_KEY>
+{ "model": "sonar", "messages": [{ "role":"user",
+  "content": "donne-moi le SIRET de {company} à {city}..." }] }`,ct:'Perplexity call'},
+    if2:{h:'Branch',t:'SIRET found ?',d:'Chemin prioritaire SIRET (④a) si trouvé. Fallback Google Places (④b) sinon — puis match phone.',io:[['SIRET','→ Snowflake by SIRET'],['null','→ GMap fallback']]},
+    s4:{h:'Snowflake · SIRET path',t:'4a · Match Account → Lead',d:'Query STG_RAUL_ACCOUNTS par `LocationRegistrationNumber__c = SIRET`. Si match → query STG_RAUL_LEADS par cet account → récupère le Lead actif. Connector `analytics_data`/`transformed_data` selon env.',io:[['in','SIRET'],['out','sf_lead_id']],code:`SELECT id, name FROM STG_RAUL_ACCOUNTS
+WHERE LocationRegistrationNumber__c = :siret;
+SELECT lead_id FROM STG_RAUL_LEADS
+WHERE account_id = :acc AND is_converted = false
+ORDER BY created_at DESC LIMIT 1;`,ct:'SQL'},
+    s5:{h:'Google Places · fallback',t:'4b · Search phone',d:'Déclenché si pas de SIRET (ou SIRET sans Account SF). `places:searchText` avec `{company} {city}` → phone international (E.164).',io:[['in','{company, city}'],['out','phone E.164']],code:`POST https://places.googleapis.com/v1/places:searchText
+X-Goog-Api-Key: <GOOGLE_PLACES_API_KEY>
+{ "textQuery": "{company} {city}" }`,ct:'GMap call'},
+    s6:{h:'Snowflake · phone path',t:'5 · Match by phone',d:'Normalisation phone → digits-only (+33 nettoyé). Match sur STG_RAUL_LEADS colonnes PHONE / MOBILE_PHONE / OTHER_PHONE.',io:[['in','phone'],['out','sf_lead_id | null']]},
+    s7:{h:'Supabase · data lake',t:'6 · Upsert offres_emploi',d:'Insert/upsert dans `public.offres_emploi` : titre, company, location, indeed_url, scrape_date, siret, sf_account_id, sf_lead_id, path (`SIRET` | `GMap` | `none`), phone, intent_pushed. Auth = service_role.',io:[['in','offre enrichie'],['out','supabase row']]},
+    if3:{h:'Branch',t:'Lead SF actif matché ?',d:'Push CRM SEULEMENT si Lead actif. Sinon row Supabase quand même (tracking) mais pas de push SF.',io:[['matched','→ N8N → SF'],['no lead','→ skip CRM, just notify']]},
+    s8:{h:'N8N CRM proxy',t:'7 · Push Lead.Intent__c',d:'Même webhook partagé que modjo-bot et taskforce-rework. Validation côté N8N (schema cache + picklist check). Si erreur → Slack alert auto.',io:[['in','{lead_id, fields}'],['out','SF ack']],code:`crm_update(
+    object_type="Lead",
+    object_id=sf_lead_id,
+    fields={ "Intent__c": "Recruiting Date",
+             "IntentComment__c": intent_comment },
+    source_project="recruiting-indeed-fr")`,ct:'crm_proxy.py'},
+    s9:{h:'Slack · 2 channels',t:'8 · Detailed + digest',d:'SLACK_CHANNEL_DETAILED → rich blocks 3 sections (Brightdata / Snowflake / CRM stats). SLACK_CHANNEL_DIGEST → 1 header + 1 ligne (OK/KO + nb leads).',io:[['out','Slack messages']]},
+    out:{h:'Output',t:'SF + Supabase + Slack',d:'Lead.Intent__c = "Recruiting Date" + commentaire (offre + ville + lien Indeed). Tracking complet dans Supabase. Stats Slack.'}
+  }
+};
+</script>
+<script src="../shared/flow.js"></script>
+</body>
+</html>

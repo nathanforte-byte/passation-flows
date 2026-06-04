@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../shared/flow.css">
+</head>
+<body>
+<script>
+window.FLOW = {
+  meta:{ title:"Modjo automation", file:"modjo_bot · Railway cron 0 20 UTC" },
+  canvas:{ w:2200, h:680 },
+  legend:[
+    {label:'Cron',color:'var(--trig)'},
+    {label:'Diabolocom',color:'var(--exa)'},
+    {label:'AssemblyAI',color:'var(--api)'},
+    {label:'Haiku 4.5',color:'var(--gem)'},
+    {label:'Snowflake',color:'var(--db)'},
+    {label:'N8N → SF',color:'var(--out)'}
+  ],
+  nodes:{
+    trig:{x:30, y:300,kind:'trig',ic:'⏱',nm:'CRON Railway',ttl:'22h Paris (20 UTC)',sb:'service modjo-bot · NEVER restart'},
+    s1:  {x:230,y:300,kind:'exa', ic:'👥',nm:'DIABOLOCOM',ttl:'1 · Pull BDR users',sb:'folders BDR + BDR Barcelona (~108)'},
+    s2:  {x:460,y:300,kind:'exa', ic:'📞',nm:'DIABOLOCOM',ttl:'2 · Search interactions',sb:'yesterday Paris TZ · Private-Token'},
+    s3:  {x:690,y:300,kind:'code',ic:'⊟',nm:'FILTER',ttl:'3 · Scope bot',sb:'ko_type=Contacted · !Inbound · dedup'},
+    s4:  {x:920,y:300,kind:'db', ic:'❄',nm:'SNOWFLAKE',ttl:'4 · Match Lead (phone)',sb:'MG_RAUL_LEADS digits-only'},
+    if1: {x:1170,y:308,kind:'if',ic:'◆',ttl:'Lead match ?'},
+    skp: {x:1130,y:90,kind:'out',ic:'⊘',nm:'SKIP',ttl:'pas de lead',sb:'no further processing'},
+    s5:  {x:1330,y:300,kind:'api',ic:'🗣',nm:'ASSEMBLYAI',ttl:'5 · STT Universal-2',sb:'multichannel · ch1 PROSPECT ch2 BDR'},
+    s6:  {x:1560,y:300,kind:'gem',ic:'✦',nm:'HAIKU 4.5',ttl:'6 · Analyse 15 outcomes',sb:'vocab SF · 9 KO + 5 non-KO + Other'},
+    s7:  {x:1790,y:300,kind:'db', ic:'❄',nm:'SNOWFLAKE',ttl:'7 · Insert analysis',sb:'MODJO_BOT_ANALYSIS (28 cols)'},
+    if2: {x:2010,y:308,kind:'if',ic:'◆',ttl:'KO_REASON_VALID ?'},
+    s8:  {x:1980,y:500,kind:'out',ic:'⇄',nm:'N8N crm-proxy',ttl:'8 · SF Lead.KOReason__c',sb:'9/15 outcomes · + NumberOfEmployees'},
+    out: {x:2010,y:90,kind:'out',ic:'▦',nm:'OUTPUT',ttl:'SF + Snowflake',sb:''}
+  },
+  edges:[
+    ['trig','r','s1','l','',''],
+    ['s1','r','s2','l','',''],
+    ['s2','r','s3','l','',''],
+    ['s3','r','s4','l','',''],
+    ['s4','r','if1','l','',''],
+    ['if1','t','skp','b','no match','f'],
+    ['if1','r','s5','l','matched','t'],
+    ['s5','r','s6','l','',''],
+    ['s6','r','s7','l','',''],
+    ['s7','r','if2','l','',''],
+    ['if2','b','s8','t','KO outcome (9/15)','t'],
+    ['if2','t','out','b','non-KO (silent skip)','f'],
+    ['s8','t','out','b','SF write','lp'],
+  ],
+  walk:['trig','s1','s2','s3','s4','if1','s5','s6','s7','if2','s8','out'],
+  details:{
+    trig:{h:'Railway cron',t:'22h Paris été / 21h hiver',d:'Service `modjo-bot` (ID e5b70a8b…). Cron `0 20 * * *` UTC. Restart policy NEVER. Une exec/jour qui traite les appels de la veille.',io:[['cron','0 20 * * * UTC']]},
+    s1:{h:'Diabolocom · users',t:'1 · Pull BDR users',d:'`GET /api/v1/account/users` → BDRs des folders `BDR` + `BDR Barcelona` (~108 users actifs). Sert à scoper les interactions au scope outbound.',io:[['out','user_ids[]']],code:`GET https://public-fr10.engage.diabolocom.com/api/v1/account/users
+Headers: Private-Token: <DIABOLOCOM_API_TOKEN>   # PAS Bearer !`,ct:'auth'},
+    s2:{h:'Diabolocom · interactions',t:'2 · Search interactions',d:'`POST /api/v1/interactions/search` filtré sur la day cible (hier en TZ Paris par défaut). READ-ONLY strict — jamais DELETE/PUT/PATCH (prod Skello).',io:[['out','interactions[] (metadata + audio_url)']]},
+    s3:{h:'Filter · scope bot',t:'3 · Filter to ~24% of eligible',d:'Filtre serré : `ko_type = "Contacted"` (vrai appel répondu) + `lead_source NOT ILIKE %Inbound%` + skip interaction_id déjà processed (idempotence via Snowflake).',io:[['in','~1804 calls'],['out','~607 calls (scope bot)']],code:`if duration <= 30: skip   # historique, retiré 2026-05-05
+if ko_type != "Contacted": skip
+if "Inbound" in lead_source: skip
+if interaction_id in already_processed: skip`,ct:'filter logic'},
+    s4:{h:'Snowflake · match',t:'4 · Match Lead by phone',d:'Normalize phone → digits-only via regex. Match `MG_RAUL_LEADS.PHONE/MOBILE_PHONE/OTHER_PHONE`. Récupère sf_lead_id + contexte (company, NB_EMPLOYEES, ko_type SF, ko_reason SF, lead_source).',io:[['in','contact_phone'],['out','sf_lead_id + context']]},
+    if1:{h:'Branch',t:'Lead matched in SF ?',d:'Si pas de match → skip (l\'appel ne concerne pas un Lead trackable en SF, on l\'ignore complètement).',io:[['matched','→ STT'],['no','→ skip']]},
+    s5:{h:'AssemblyAI · STT',t:'5 · Universal-2 multichannel',d:'**ch1 = PROSPECT, ch2 = BDR** sur outbound (convention Skello, contre-intuitif mais critique). Merge canaux en transcript propre avec speaker tags. Coût ~$0.005/min effectif.',io:[['in','MP3 stereo'],['out','transcript + speakers']],code:`assemblyai.transcribe(audio_url, config={
+  "speech_model": "best",     # Universal-2
+  "multichannel": True,       # 2 canaux séparés
+  "speaker_labels": True })`,ct:'AssemblyAI'},
+    s6:{h:'Haiku 4.5 · analyse',t:'6 · 15 outcomes (vocab SF)',d:'`claude-haiku-4-5-20251001`. Prompt avec vocab SF imposé : **9 KO** (Already customer, Bad timing, Competitor, Financial situation, Internal Solution, Not the target, Product Fit, Shop closed seasonal, Shop closed for life), **5 non-KO** (Appointment booked, Confirmed, Rescheduled, No reach, Callback scheduled), **1 fallback** (Other). Extrait aussi : outcome_reason, call_type, employee_count, skello_competitors (Excel/papier inclus !), payroll_tools, pos_tools, notes, prospects[].',io:[['in','transcript + SF context'],['out','outcome + 10+ fields']]},
+    s7:{h:'Snowflake · data lake',t:'7 · Insert MODJO_BOT_ANALYSIS',d:'`TRANSFORMED_DATA.PUBLIC.MODJO_BOT_ANALYSIS` — 28 colonnes : IDs, contexte SF, analyse Haiku, raw transcript, tokens, duration.',io:[['out','1 row / call']]},
+    if2:{h:'Branch',t:'outcome ∈ KO_REASON_VALID ?',d:'Push CRM seulement pour les **9 outcomes KO** (sur 15). Skip silencieux pour Appointment booked, Confirmed, Rescheduled, No reach, Callback scheduled, Other → analyse stockée mais SF pas touché.',io:[['KO','→ push SF'],['non-KO','→ silent skip']]},
+    s8:{h:'N8N · crm-proxy',t:'8 · Push to Salesforce',d:'Webhook partagé. Si erreur de mapping (champ inconnu, picklist invalide) → Slack alert auto sur `#growth-team` (C0B1AB27N59).',io:[['in','{lead_id, KOReason__c, NumberOfEmployees}'],['out','SF PATCH ack']],code:`crm_update(
+    object_type="Lead",
+    object_id=sf_lead_id,
+    fields={ "KOReason__c": outcome_haiku,
+             "NumberOfEmployees": employee_count_haiku },
+    source_project="modjo-bot",
+    external_ref=f"modjo://interaction/{interaction_id}")`,ct:'crm_proxy.py'},
+    out:{h:'Output',t:'SF Lead enriched + Snowflake row',d:'Lead.KOReason__c + NumberOfEmployees update sur 9/15 outcomes. Coût ~$0.013/call → ~$284/mois pour ~500 calls/jour scope bot. ~15-25× moins cher que Modjo.'}
+  }
+};
+</script>
+<script src="../shared/flow.js"></script>
+</body>
+</html>

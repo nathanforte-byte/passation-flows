@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../shared/flow.css">
+</head>
+<body>
+<script>
+window.FLOW = {
+  meta:{ title:"Skello map", file:"hospitality-map · Vercel + Railway sync" },
+  canvas:{ w:2200, h:680 },
+  legend:[
+    {label:'Cron',color:'var(--trig)'},
+    {label:'Snowflake',color:'var(--db)'},
+    {label:'Supabase',color:'var(--api)'},
+    {label:'Railway',color:'var(--exa)'},
+    {label:'React + DeckGL',color:'var(--gem)'},
+    {label:'User',color:'var(--out)'}
+  ],
+  nodes:{
+    // Sync pipeline (top row)
+    cron:{x:30, y:80, kind:'trig',ic:'⏱',nm:'CRON 0 * * * *',ttl:'Railway hourly',sb:'service sync-map-data'},
+    sf:  {x:230,y:80, kind:'db', ic:'❄',nm:'SNOWFLAKE',ttl:'1 · Query',sb:'raul.* + product.organisations'},
+    sync:{x:460,y:80, kind:'exa',ic:'🔄',nm:'RAILWAY',ttl:'2 · sync_to_storage.py',sb:'gzip JSON columnar + dedup strings'},
+    sup_st:{x:710,y:80, kind:'api',ic:'⊡',nm:'SUPABASE Storage',ttl:'3 · Bucket map-data',sb:'{macro}_{country}.json.gz + version.json'},
+    // Frontend (middle)
+    user:{x:30, y:380,kind:'trig',ic:'👤',nm:'USER @skello.io',ttl:'Login Google OAuth',sb:'Supabase Auth · domain gated'},
+    vercel:{x:280,y:380,kind:'gem',ic:'⚡',nm:'VERCEL',ttl:'4 · Vite + React 18',sb:'skello-map.vercel.app'},
+    fetch:{x:540,y:380,kind:'api',ic:'⬇',nm:'fetch + gunzip',ttl:'5 · DecompressionStream',sb:'decode columnar → leads[] shops[]'},
+    deck:{x:790,y:380,kind:'gem',ic:'🗺',nm:'DECKGL + Mapbox',ttl:'6 · Render layers',sb:'ScatterplotLayer + IconLayer · clustering'},
+    panel:{x:1040,y:380,kind:'gem',ic:'▤',nm:'PANEL UI',ttl:'7 · LeadPanel / ShopPanel',sb:'filters · stats · sticky URL'},
+    if1: {x:1290,y:388,kind:'if',ic:'◆',ttl:'action ?'},
+    // Write paths (right)
+    unq:{x:1490,y:200,kind:'api',ic:'✎',nm:'SUPABASE REST',ttl:'8a · Mark unqualified',sb:'POST lead_status_overrides'},
+    cid:{x:1490,y:560,kind:'api',ic:'🔎',nm:'SUPABASE REST',ttl:'8b · Maps CID lookup',sb:'GET lead_cid_mapping?cid=eq.'},
+    hunt:{x:1490,y:380,kind:'gem',ic:'🎯',nm:'HUNTING',ttl:'8c · Zone draw / visit',sb:'hunting_zones + visits'},
+    // Outputs
+    out: {x:1760,y:380,kind:'out',ic:'▦',nm:'STATE',ttl:'Map + URL + Supabase',sb:''}
+  },
+  edges:[
+    ['cron','r','sf','l','',''],
+    ['sf','r','sync','l','',''],
+    ['sync','r','sup_st','l','',''],
+    ['sup_st','b','fetch','t','hourly refresh','lp'],
+    ['user','r','vercel','l','OAuth',''],
+    ['vercel','r','fetch','l','',''],
+    ['fetch','r','deck','l','',''],
+    ['deck','r','panel','l','',''],
+    ['panel','r','if1','l','',''],
+    ['if1','t','unq','b','unqualified','t'],
+    ['if1','r','hunt','l','hunting',''],
+    ['if1','b','cid','t','paste Maps URL','f'],
+    ['unq','r','out','l','',''],
+    ['hunt','r','out','l','',''],
+    ['cid','r','out','l','',''],
+  ],
+  walk:['cron','sf','sync','sup_st','user','vercel','fetch','deck','panel','if1','hunt','out'],
+  details:{
+    cron:{h:'Railway cron',t:'Hourly sync trigger',d:'Service Railway `sync-map-data` (ID `81c54d9d-8cda-4a45-8132-b732b1d3184d`) dans projet Outbound. Cron `0 * * * *` UTC.',io:[['cron','0 * * * * UTC']]},
+    sf:{h:'Snowflake · sources',t:'1 · Query macro × country',d:'2 schémas : `transformed_data.raul.*` (leads SF, accounts, networks, owners) + `analytics_data.product.organisations` (clients Skello). Une query par macro × pays.',io:[['out','leads[] + shops[] par bucket']]},
+    sync:{h:'Railway · sync_to_storage.py',t:'2 · Columnar gzip',d:'Format columnar pour économiser la bande passante : chaque lead/shop = array de valeurs primitives (pas un objet), strings répétées (statuses, industries, networks, owners, countries) déduppées en lookup tables. Décodage front via `decodeLeads()` / `decodeShops()`.',io:[['in','rows[]'],['out','{macro}_{country}.json.gz']],code:`# pseudocode
+for macro in MACROS:
+  for country in COUNTRIES:
+    rows = snowflake.query(macro, country)
+    payload = columnar_encode(rows)  # dedup strings
+    storage.upload(f"{macro}_{country}.json.gz", gzip(payload))
+# also all_shops.json.gz (touche ⇧+A preview) + version.json bump`,ct:'sync code'},
+    sup_st:{h:'Supabase Storage',t:'3 · Bucket map-data',d:'Bucket public-read (write restricted au service_role utilisé par Railway). Contient : `{macro}_{country}.json.gz`, `{macro}_shops.json.gz`, `all_shops.json.gz`, `version.json` (cache busting), `bdr_emails.json`, `tl_emails.json`.',io:[['out','public URLs']]},
+    user:{h:'User',t:'Login @skello.io enforced',d:'Supabase Google OAuth (project `qeracszwzpkellfqjbgk`). Domaine `@skello.io` enforced via `setAuthError` côté front + Redirect URLs côté Supabase dashboard.'},
+    vercel:{h:'Vercel · frontend',t:'4 · Vite + React 18',d:'Vite 6 + React 18 + DeckGL 9 + Mapbox-gl + Supercluster + `@supabase/supabase-js`. Project `hospitality-map` (`prj_c2YNjYHNQMibaA8TdLn5BR2NshrG`) sur team `nathan-fortes-projects`. URL prod : skello-map.vercel.app.',io:[['url','https://skello-map.vercel.app']]},
+    fetch:{h:'Fetch + gunzip',t:'5 · DecompressionStream',d:'Fetch direct des `.json.gz` depuis Supabase Storage, décompression côté browser (DecompressionStream API), décode columnar via `decodeLeads()` / `decodeShops()`. Check `version.json` toutes les minutes → invalide localStorage si bump.',io:[['in','.json.gz'],['out','leads[] shops[]']]},
+    deck:{h:'DeckGL + Mapbox',t:'6 · Layers',d:'`MapView` : ScatterplotLayer pour pins lead + IconLayer pour pins shop + IconLayer dédié pour le selected lead (cross icon). Style Mapbox `light-v11`. Pin colors via `industryColorStrings` de `macroConfig.js`.'},
+    panel:{h:'Panel UI',t:'7 · LeadPanel / ShopPanel',d:'`Topbar` (pill flottante, 2 search fields, geocode Enter). `FilterDock` (status / network / My leads / ≥5 emp). `StatsCard` (industries cliquables, sync les 2 sides). `LeadPanel` / `ShopPanel` flottants (pop spring, liste plate). Filtres reflétés en URL → deep-link complet.'},
+    if1:{h:'Branch',t:'User action ?',d:'3 chemins d\'écriture/lecture Supabase REST déclenchés par l\'UI.',io:[['unqualified','LeadPanel button'],['hunting','draw zone or visit'],['paste','Maps URL with CID']]},
+    unq:{h:'Supabase REST · write',t:'8a · Mark Unqualified',d:'POST `/rest/v1/lead_status_overrides` avec `Prefer: resolution=merge-duplicates`. Anon key (RLS = open en write sur cette table).',io:[['out','override row']]},
+    cid:{h:'Supabase REST · read',t:'8b · Google Maps CID lookup',d:'Si user colle une URL Maps avec CID → parse le CID décimal → GET `/rest/v1/lead_cid_mapping?cid=eq.{cid}` → résout vers `sf_lead_id`. Fallback sur coords si pas de match.',io:[['in','Maps URL'],['out','sf_lead_id']]},
+    hunt:{h:'Hunting (BDR chasse terrain)',t:'8c · Zones + visits',d:'Manager (admin/TL) trace polygone, split (k-means N points OU grid cols×rows), assigne owners. Hunter (BDR) toggle Visited sur leads. Tables : `hunting_zones` + `hunting_sub_zones` + `hunting_lead_visits`. Algos : Turf k-means + Voronoi + grid clip.',io:[['tables','hunting_*']]},
+    out:{h:'Output',t:'Map state + writes',d:'L\'URL contient macro/country/display/search/filters/leadId/shopId → refresh restore complet. Writes Supabase visibles au prochain refresh data (cron hourly).'}
+  }
+};
+</script>
+<script src="../shared/flow.js"></script>
+</body>
+</html>
