@@ -1,0 +1,24 @@
+{
+  "flows": [
+    {
+      "slug": "find-company-contacts",
+      "title": "Contacts agent",
+      "file": "find_company_contacts.py",
+      "icon": "🕵️",
+      "status": "live",
+      "tags": ["Exa", "Gemini", "agent loop", "outbound"],
+      "description": "Finds decision-makers (Owner / Director / Partner / HR) for a company from its LinkedIn page + website. Exa × Gemini agentic loop with strict location validation and registry fallback."
+    },
+    { "slug": "modjo-bot", "title": "Modjo automation", "file": "modjo-bot", "icon": "📞", "status": "planned", "tags": ["Snowflake", "Supabase", "N8N", "Modjo"], "description": "Reads Snowflake (RAUL), writes to dedicated Supabase, pushes back to SF via N8N proxy. Logs batch via _log_batch_outcome." },
+    { "slug": "modjo-de-wish", "title": "Modjo de wish (Diabolocom)", "icon": "🎧", "status": "planned", "tags": ["Diabolocom", "AssemblyAI", "Haiku 4.5"], "description": "STT + qualif on Diabolocom calls. Haiku 4.5 default, Sonnet fallback for qualif/scoring. Stereo ch1=PROSPECT / ch2=BDR." },
+    { "slug": "google-leads-dedup", "title": "Google Leads dedup", "icon": "📍", "status": "planned", "tags": ["Snowflake", "BAN", "dedup"], "description": "Split NEW/OLD vs STG_RAUL_LEADS, dedup phone/domain + 2-stage geo FR via result_id BAN, local cache." },
+    { "slug": "building-enrichment", "title": "Building leads enrichment", "icon": "🏗", "status": "planned", "tags": ["FullEnrich", "Exa", "Gemini", "BTP"], "description": "FullEnrich first + Exa/Gemini fallback. 126 BTP leads ES." },
+    { "slug": "update-intent", "title": "Update Intent (Slack digest)", "icon": "📢", "status": "planned", "tags": ["Slack", "GH Actions", "cron"], "description": "Cron GH Actions 2x/day. First ZZ team send scheduled 2026-04-29 09:10." },
+    { "slug": "skello-map", "title": "Skello Map (Chasse Terrain)", "icon": "🗺", "status": "planned", "tags": ["Vercel", "Snowflake", "Supabase Storage"], "description": "Source hospitality-map@main, backup cnea-backup, host Vercel perso. Push = 3 steps." },
+    { "slug": "sync-map-data", "title": "sync-map-data (Railway cron)", "icon": "⏱", "status": "planned", "tags": ["Railway", "Snowflake", "Supabase Storage"], "description": "Snowflake → Supabase Storage migré du GH Actions vers Railway cron horaire." },
+    { "slug": "estuaire", "title": "Estuaire — contrail map", "icon": "✈️", "status": "planned", "tags": ["OpenSky", "GH Actions", "Vercel", "Supabase"], "description": "GH Actions cron 5min → fetch OpenSky+weather → Supabase opensky_latest → Vercel reads. Azure-only (GCP/AWS/CF blacklisted)." },
+    { "slug": "veille", "title": "Daily veille", "icon": "📰", "status": "planned", "tags": ["Reddit", "GitHub", "Supabase", "Vercel"], "description": "Reddit + GitHub + Exa → Supabase veille_items. Dashboard Vercel avec OTP via Gmail." },
+    { "slug": "brand-voice", "title": "Brand voice skill", "icon": "🎙", "status": "planned", "tags": ["Claude skill", "multi-brand"], "description": "Multi-brand voice / translation skill. Template 14 sections + brands/skello-en.md." },
+    { "slug": "notion-passation", "title": "Notion passation skill", "icon": "📋", "status": "planned", "tags": ["Claude skill", "Notion"], "description": "Toggles fiches : Schéma / Description / Links / Coûts / MD. User-level skill." }
+  ]
+}

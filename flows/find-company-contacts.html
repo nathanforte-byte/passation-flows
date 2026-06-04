@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../shared/flow.css">
+</head>
+<body>
+<script>
+window.FLOW = {
+  meta:{ title:"Contacts agent", file:"find_company_contacts.py" },
+  canvas:{ w:2150, h:620 },
+  nodes:{
+    trig:{x:30, y:268, kind:'trig', ic:'▤', nm:'TRIGGER', ttl:'CSV companies', sb:'1 row / company · asyncio, 2 in //'},
+    s1:  {x:262,y:268, kind:'exa',  ic:'🕸', nm:'EXA · crawl', ttl:'1 · Crawl site + LinkedIn /about/', sb:'raw text → context'},
+    s2:  {x:494,y:268, kind:'gem',  ic:'✦', nm:'GEMINI', ttl:'2 · Context extraction', sb:'city · SL legal name · related brands'},
+    s3:  {x:726,y:140, kind:'exa',  ic:'🔍', nm:'EXA · search ×3', ttl:'3 · LinkedIn search', sb:'3 queries // · dedup · anti-fake-profile'},
+    s4:  {x:726,y:392, kind:'exa',  ic:'📰', nm:'EXA · search', ttl:'4 · Press / local web', sb:'propietario · dueño · gerente…'},
+    s5:  {x:986,y:268, kind:'gem',  ic:'✦', nm:'GEMINI', ttl:'5 · Global analysis', sb:'→ {status, contacts[], next_query}'},
+    if1: {x:1238,y:276,kind:'if',   ic:'◆', ttl:'status ?'},
+    s6:  {x:1180,y:60, kind:'gem',  ic:'↻', nm:'EXA+GEMINI', ttl:'6 · Agent iteration', sb:'next_query → crawl 3 profiles → re-analyse'},
+    s7:  {x:1430,y:268,kind:'gem',  ic:'✓', nm:'CRAWL+GEMINI', ttl:'7 · Strict validation', sb:'crawl 5 profiles · check city + name'},
+    if2: {x:1682,y:276,kind:'if',   ic:'◆', ttl:'/in/ found ?'},
+    s8:  {x:1486,y:452,kind:'exa',  ic:'🏛', nm:'EXA · crawl', ttl:'8 · Registry fallback', sb:'empresia.es / einforma → administrators'},
+    s8b: {x:1720,y:452,kind:'gem',  ic:'🔗', nm:'EXA+GEMINI', ttl:'8b · Match name to LinkedIn', sb:'search /in/ + crawl + validate → fills linkedin_url'},
+    out: {x:1948,y:262,kind:'out',  ic:'▦', nm:'OUTPUT', ttl:'contacts_found_*.csv', sb:'JSONL resume + flattened CSV'}
+  },
+  edges:[
+    ['trig','r','s1','l','',''],
+    ['s1','r','s2','l','',''],
+    ['s2','r','s3','l','',''],
+    ['s2','r','s4','l','',''],
+    ['s3','r','s5','l','',''],
+    ['s4','r','s5','l','',''],
+    ['s5','r','if1','l','',''],
+    ['if1','t','s6','b','need_more_search','lp'],
+    ['s6','l','s5','t','re-analyse ↺','lp'],
+    ['if1','r','s7','l','found / not_found','f'],
+    ['s7','r','if2','l','',''],
+    ['if2','b','s8','t','✗ no /in/','f'],
+    ['if2','r','out','l','✓ contact','t'],
+    ['s8','r','s8b','l','name found',''],
+    ['s8b','t','out','b','+ linkedin_url','lp']
+  ],
+  walk:['trig','s1','s2','s3','s5','if1','s6','s5','if1','s7','if2','s8','s8b','out'],
+  details:{
+    trig:{h:'Python · trigger',t:'Input — companies_to_search.csv',d:'Reads the CSV, loads JSONL progress and only reprocesses the remaining companies. asyncio + semaphore = 2 companies in parallel.',io:[['in','companies_to_search.csv'],['out','remaining[]']],code:`company_name, linkedin_company_url, website_url
+"Cosafina", ".../company/cosafina/", "https://sushido.es/"`,ct:'columns'},
+    s1:{h:'Exa · /contents',t:'1 · Crawl site + LinkedIn /about/',d:'Normalises the LinkedIn URL to /about/ and crawls both pages (≤2500 chars) → raw context.',io:[['in','website_url + linkedin_url'],['out','context_text']],code:`POST /contents
+{ "urls": [website, linkedin+"/about/"],
+  "contents": { "text": { "maxCharacters": 2500 } } }`,ct:'Exa call'},
+    s2:{h:'Gemini',t:'2 · Context extraction',d:'Gemini structures the text. Fallback "just extract the city" if empty. Builds search_terms = [name, domain, slug, brands, legal name] → up to 4 OR terms.',io:[['in','context_text'],['out','{city, legal_name, brands}']],code:`{ "city":"...", "company_legal_name":"PINEÑO MARTÍN S.L.",
+  "related_brands":[...], "sector":"restaurant" }`,ct:'CONTEXT_EXTRACT_PROMPT'},
+    s3:{h:'Exa · search ×3',t:'3 · Targeted LinkedIn search',d:'3 angles in parallel (leaders / site:linkedin.com/in / HR), restricted to linkedin.com. Dedup by URL + REJECT /in/ whose slug ≈ company name (disguised company pages).',io:[['in','search_terms + city'],['out','results_linkedin[]']],code:`q1 "owner founder director gerente {terms}{city}"
+q2 "site:linkedin.com/in {terms}{city}"
+q3 "HR recursos humanos people talent {terms}{city}"
+→ includeDomains:["linkedin.com"]`,ct:'3 parallel queries'},
+    s4:{h:'Exa · search',t:'4 · Press / local web',d:'Broad multilingual web query (no domain filter), anchored on the city.',io:[['in','search_terms + city'],['out','results_web[]']],code:`"{terms}{city} propietario OR fundador OR dueño
+  OR owner OR director OR gerente"`,ct:'web query'},
+    s5:{h:'Gemini · decision',t:'5 · Global analysis',d:'Merges LinkedIn + web + context. SYSTEM_PROMPT enforces role priority + validation rules. Returns JSON with status driving the loop.',io:[['in','results + context'],['out','{status, contacts[], next_query}']],code:`{ "status":"found | need_more_search | not_found",
+  "contacts":[{ "name", "linkedin_url", "role",
+    "role_detail", "confidence":"high|medium|low|registry" }],
+  "next_query":"...", "reasoning":"..." }`,ct:'SYSTEM_PROMPT → JSON',rules:true},
+    if1:{h:'Branch',t:'status == need_more_search ?',d:'If Gemini asks for more search → agent loop (step 6). Otherwise → validation (step 7).',io:[['true','→ step 6 (loop)'],['false','→ step 7']]},
+    s6:{h:'Agent loop · Exa+Gemini',t:'6 · Additional iterations',d:'While status = need_more_search (up to MAX_AGENT_STEPS): Gemini writes next_query → Exa runs it → crawl /in/ profiles → Gemini re-analyses → dedup contacts → back to step 5.',io:[['in','next_query'],['out','enriched contacts[] → 5']],code:`for step in range(2, MAX_AGENT_STEPS-1):
+    if status != "need_more_search": break
+    extra = exa_search(next_query)
+    crawl([r for r in extra if "/in/" in r.url][:3])
+    parsed = gemini(SYSTEM_PROMPT, extra+profiles)`,ct:'loop'},
+    s7:{h:'Crawl + Gemini',t:'7 · Strict validation',d:'Crawl ≤5 full profiles. Gemini keeps ONLY contacts whose profile mentions the company / legal name / related brand AND whose location == city. Namesakes eliminated. Ranked Owner > Director > Partner > HR.',io:[['in','profile_urls[:5]'],['out','validated_contacts[]']],code:`- profile MUST mention {company}|{legal}|{brand}
+- location MUST == {city}
+- namesake in another city → ELIMINATED`,ct:'validation'},
+    if2:{h:'Branch',t:'At least one valid /in/ ?',d:'If no real LinkedIn profile → registry fallback (step 8). Otherwise → output.',io:[['no','→ step 8 (registry)'],['yes','→ output']]},
+    s8:{h:'Exa · fallback',t:'8 · Business registry fallback',d:'Triggered only when no valid /in/. Crawl/search empresia.es & einforma.com → Gemini extracts the administrators (Administrador Único, Apoderado). Each name then goes to step 8b for a LinkedIn match attempt.',io:[['in','legal_name | company_name'],['out','administrators[] (name + role)']],code:`crawl empresia.es/empresa/{slug}/
+if empty → search "{name} administrador site:empresia.es"
+→ REGISTRY_EXTRACT_PROMPT → administrators[]`,ct:'registry'},
+    s8b:{h:'Exa + Gemini · match',t:'8b · Match registry name to LinkedIn',d:'For each administrator: search their LinkedIn profile (site:linkedin.com/in + city + company), crawl top 3 candidates, and Gemini validates it is the right person (name + city + company) before filling linkedin_url. If matched → confidence high/medium; otherwise stays confidence: registry.',io:[['in','admin_name + city + company'],['out','contact { name, linkedin_url, confidence }']],code:`q = site:linkedin.com/in "{admin_name}"{city} {company}
+→ crawl candidates[:3]
+→ REGISTRY_LINKEDIN_MATCH_PROMPT
+   { "matched": bool, "linkedin_url": "...", "confidence" }`,ct:'registry → LinkedIn match'},
+    out:{h:'Python · output',t:'Output — contacts_found_*.csv',d:'Append JSONL (resume-safe) + flattened CSV: 1 row / contact with confidence and source (linkedin/registry).',io:[['out','contacts_found_YYYYMMDD_HHMMSS.csv']],code:`company_name, ..., contact_name, contact_linkedin,
+contact_role, contact_role_detail, confidence, source`,ct:'final CSV'}
+  },
+  rules:[
+    ['Location','ALWAYS verify the city. Cosafina@Palma ≠ Cosafina@Talavera.'],
+    ['Exact name','The profile must mention the company EXACTLY (not a namesake).'],
+    ['Multi-brand','One group = several brands, same owner.'],
+    ['Anti-fake-profile','REJECT /in/ pages that are disguised company pages.'],
+    ['Registry','Contact via BORME/empresia.es with no LinkedIn → confidence: registry.']
+  ]
+};
+</script>
+<script src="../shared/flow.js"></script>
+</body>
+</html>
