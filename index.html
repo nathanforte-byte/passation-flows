@@ -41,8 +41,8 @@ header .meta span b{color:var(--mut);font-weight:500}
 }
 .card::after{
   content:"";position:absolute;inset:0;
-  background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.07) 50%,transparent 70%);
-  transform:translateX(120%);transition:transform 1s ease;
+  background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.08) 50%,transparent 70%);
+  transform:translateX(-120%);
   z-index:0;pointer-events:none
 }
 .card > *{position:relative;z-index:1}
@@ -52,7 +52,26 @@ header .meta span b{color:var(--mut);font-weight:500}
   box-shadow:0 24px 60px -20px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04)
 }
 .card:hover::before{opacity:.55;transform:scale(1.15)}
-.card:hover::after{transform:translateX(-120%)}
+.card:hover::after{animation:card-shine .9s ease forwards}
+@keyframes card-shine{
+  0%{transform:translateX(120%)}
+  100%{transform:translateX(-120%)}
+}
+.card .dot{
+  position:absolute;width:6px;height:6px;border-radius:50%;
+  background:#fff;
+  box-shadow:0 0 10px 2px rgba(255,255,255,.75),0 0 22px 4px rgba(255,255,255,.35);
+  opacity:0;z-index:3;pointer-events:none;
+  top:6px;right:6px;
+  transition:opacity .4s ease
+}
+.card:hover .dot{opacity:1;animation:dot-trace 4.5s linear infinite}
+@keyframes dot-trace{
+  0%,100%{top:6px;right:6px}
+  25%{top:6px;right:calc(100% - 12px)}
+  50%{top:calc(100% - 12px);right:calc(100% - 12px)}
+  75%{top:calc(100% - 12px);right:6px}
+}
 .card .corner{position:absolute;width:72px;height:72px;opacity:0;transition:opacity .5s ease;pointer-events:none;z-index:0}
 .card .corner.tl{top:0;left:0;background:linear-gradient(135deg,rgba(255,255,255,.10),transparent 70%);border-radius:0 0 24px 0}
 .card .corner.br{bottom:0;right:0;background:linear-gradient(315deg,rgba(255,255,255,.10),transparent 70%);border-radius:24px 0 0 0}
@@ -109,6 +128,7 @@ fetch('manifest.json').then(r=>r.json()).then(m=>{
   document.getElementById('ct-plan').textContent=plan.length;
   const card=f=>`<a class="card ${f.status}" href="${f.status==='live'?`flows/${f.slug}.html`:'#'}" ${f.status!=='live'?'onclick="event.preventDefault()"':''}>
     <span class="corner tl"></span><span class="corner br"></span>
+    <span class="dot"></span>
     <span class="status ${f.status}">${f.status}</span>
     <div class="top">
       <div class="ic">${f.icon||'•'}</div>
